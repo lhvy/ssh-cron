@@ -1,17 +1,34 @@
 name: CD
 on:
   push:
+    tags:
+      - "v*"
 
 env:
   RELEASE_BIN: ssh-cron
 
 jobs:
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.step.outputs.upload_url }}
+
+    steps:
+      - uses: softprops/action-gh-release@v1
+        id: step
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          draft: false
+
   build_release:
     name: Build release
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    needs: create_release
 
     steps:
       - uses: actions/checkout@v2
@@ -20,9 +37,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-
-      - name: Load Rust/Cargo cache
-        uses: Swatinem/rust-cache@v2
 
       - name: Build
         run: cargo build --release
@@ -35,10 +49,12 @@ jobs:
         if: matrix.os == 'windows-latest'
 
       - name: Upload Windows archive
-        uses: actions/upload-artifact@master
+        uses: shogo82148/actions-upload-release-asset@v1
         with:
-          name: ${{ env.RELEASE_BIN }}-windows-x86_64.zip
-          path: ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip
+          asset_name: ${{ env.RELEASE_BIN }}-windows-x86_64.zip
+          asset_content_type: application/zip
         if: matrix.os == 'windows-latest'
 
       - name: Create macOS archive
@@ -46,8 +62,10 @@ jobs:
         if: matrix.os == 'macos-latest'
 
       - name: Upload macOS archive
-        uses: actions/upload-artifact@master
+        uses: shogo82148/actions-upload-release-asset@v1
         with:
-          name: ${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
-          path: ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
+          asset_name: ${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
+          asset_content_type: application/gzip
         if: matrix.os == 'macos-latest'
