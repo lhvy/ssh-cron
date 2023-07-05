@@ -615,6 +615,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
 
 [[package]]
+name = "linecount"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5d5a4a243b9cf052d37af99679cc93b08a791f444a4a1b21bb4efcaf01847d8"
+
+[[package]]
 name = "lock_api"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1166,6 +1172,7 @@ dependencies = [
  "async-ssh2-tokio",
  "indicatif",
  "inquire",
+ "linecount",
  "tokio",
 ]
 
