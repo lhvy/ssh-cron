@@ -8,29 +8,12 @@ env:
   RELEASE_BIN: ssh-cron
 
 jobs:
-  create_release:
-    name: Create release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.step.outputs.upload_url }}
-
-    steps:
-      - uses: actions/create-release@v1
-        id: step
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-
   build_release:
     name: Build release
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    needs: create_release
 
     steps:
       - uses: actions/checkout@v2
@@ -50,28 +33,18 @@ jobs:
         run: 7z a -tzip ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip ./target/release/${{ env.RELEASE_BIN }}.exe
         if: matrix.os == 'windows-latest'
 
-      - name: Upload Windows archive
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip
-          asset_name: ${{ env.RELEASE_BIN }}-windows-x86_64.zip
-          asset_content_type: application/zip
-        if: matrix.os == 'windows-latest'
-
       - name: Create macOS archive
         run: tar -czvf ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz ./target/release/${{ env.RELEASE_BIN }}
         if: matrix.os == 'macos-latest'
 
-      - name: Upload macOS archive
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    needs: build_release
+
+    steps:
+      - uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
-          asset_name: ${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
-          asset_content_type: application/gzip
-        if: matrix.os == 'macos-latest'
+          files: |
+            ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip
+            ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.tar.gz
