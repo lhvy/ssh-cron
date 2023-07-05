@@ -38,6 +38,9 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Load Rust/Cargo cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Build
         run: cargo build --release
 
