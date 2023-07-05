@@ -24,6 +24,8 @@ async fn main() -> Result<(), async_ssh2_tokio::Error> {
         "k1tv3.i.ofgs.nsw.edu.au",
         "k1tv4.i.ofgs.nsw.edu.au",
         "y12commonroom.i.ofgs.nsw.edu.au",
+        "l1tv1.i.ofgs.nsw.edu.au",
+        "l1tv2.i.ofgs.nsw.edu.au",
     ];
 
     let password = Text::new("Enter the password").prompt();
@@ -39,7 +41,13 @@ async fn main() -> Result<(), async_ssh2_tokio::Error> {
             auth_method.clone(),
             ServerCheckMethod::NoCheck,
         )
-        .await?;
+        .await;
+
+        if client.is_err() {
+            println!("ERROR: Cannot connect to {}!", host);
+            continue;
+        }
+        let client = client?;
 
         let _ = client.execute("rm .display-test-abc").await?;
         // Don't check result, file may not exist.
@@ -81,7 +89,7 @@ async fn main() -> Result<(), async_ssh2_tokio::Error> {
         let _ = client.execute("rm .display-test-abc").await?;
         pb.inc(1);
     }
-    pb.finish_with_message("Success!");
+    pb.abandon();
 
     Ok(())
 }
