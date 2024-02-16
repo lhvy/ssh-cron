@@ -8,7 +8,7 @@ use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), async_ssh2_tokio::Error> {
-    let options: Vec<&str> = vec!["On (7am->5pm)", "On (7am->9pm)", "Off"];
+    let options: Vec<&str> = vec!["On (7am->5pm)", "On (7am->9pm)", "Always On", "Off"];
 
     let ans: Result<&str, InquireError> =
         Select::new("What mode would you like?", options).prompt();
@@ -28,65 +28,73 @@ async fn main() -> Result<(), async_ssh2_tokio::Error> {
 
     if let Ok(lines) = read_lines("./hosts.txt") {
         // Consumes the iterator, returns an (Optional) String
-        for line in lines {
-            if let Ok(host) = line {
-                let client = Client::connect(
-                    (host.to_owned(), 22),
-                    "pi",
-                    auth_method.clone(),
-                    ServerCheckMethod::NoCheck,
-                )
-                .await;
+        for host in lines.flatten() {
+            let client = Client::connect(
+                (host.to_owned(), 22),
+                "pi",
+                auth_method.clone(),
+                ServerCheckMethod::NoCheck,
+            )
+            .await;
 
-                if client.is_err() {
-                    let _ = m.println(format!("ERROR: Cannot connect to {}!", host));
-                    continue;
-                }
-                let client = client?;
+            if client.is_err() {
+                let _ = m.println(format!("ERROR: Cannot connect to {}!", host));
+                continue;
+            }
+            let client = client?;
 
-                let _ = client.execute("rm .display-test-abc").await?;
-                // Don't check result, file may not exist.
+            let _ = client.execute("rm .display-test-abc").await?;
+            // Don't check result, file may not exist.
 
-                let result = client
-                    .execute("crontab -l | grep -v \"startDisplay\" >> .display-test-abc")
-                    .await?;
-                if (result.output).starts_with("no crontab") {
-                    let _ = m.println(format!(
-                        "ERROR: {} has no crontab, maybe make it manually...",
-                        host
-                    ));
-                    continue;
-                }
+            let result = client
+                .execute("crontab -l | grep -v \"startDisplay\" >> .display-test-abc")
+                .await?;
+            if (result.output).starts_with("no crontab") {
+                let _ = m.println(format!(
+                    "ERROR: {} has no crontab, maybe make it manually...",
+                    host
+                ));
+                continue;
+            }
 
-                let off_cron = "1 17,21 * * * export DISPLAY=:0 && /home/pi/startDisplaynight.sh";
-                let result = client
-                    .execute(&format!("echo \"{}\" >> .display-test-abc", off_cron))
-                    .await?;
-                assert_eq!(result.exit_status, 0);
+            let off_cron = "1 17,21 * * * export DISPLAY=:0 && /home/pi/startDisplaynight.sh";
+            let result = client
+                .execute(&format!("echo \"{}\" >> .display-test-abc", off_cron))
+                .await?;
+            assert_eq!(result.exit_status, 0);
 
-                match ans {
-                    "On (7am->5pm)" => {
-                        let result = client
+            match ans {
+                "On (7am->5pm)" => {
+                    let result = client
                             .execute("echo \"*/5 7-16 * * mon-fri export DISPLAY=:0 && /home/pi/startDisplay.sh\" >> .display-test-abc")
                             .await?;
-                        assert_eq!(result.exit_status, 0);
-                    }
-                    "On (7am->9pm)" => {
-                        let result = client
+                    assert_eq!(result.exit_status, 0);
+                }
+                "On (7am->9pm)" => {
+                    let result = client
                         .execute("echo \"*/5 7-20 * * mon-fri export DISPLAY=:0 && /home/pi/startDisplay.sh\" >> .display-test-abc")
                         .await?;
-                        assert_eq!(result.exit_status, 0);
-                    }
-                    "Off" => {}
-                    _ => unreachable!(),
-                };
+                    assert_eq!(result.exit_status, 0);
+                }
+                "Always On" => {
+                    let result = client
+                        .execute("echo \"*/5 * * * * export DISPLAY=:0 && /home/pi/startDisplay.sh\" >> .display-test-abc")
+                        .await?;
+                    assert_eq!(result.exit_status, 0);
+                }
+                "Off" => {
+                    client
+                        .execute("export DISPLAY=:0 && /home/pi/startDisplaynight.sh")
+                        .await?;
+                }
+                _ => unreachable!(),
+            };
 
-                let result = client.execute("cat .display-test-abc | crontab -").await?;
-                assert_eq!(result.exit_status, 0);
+            let result = client.execute("cat .display-test-abc | crontab -").await?;
+            assert_eq!(result.exit_status, 0);
 
-                let _ = client.execute("rm .display-test-abc").await?;
-                pb.inc(1);
-            }
+            let _ = client.execute("rm .display-test-abc").await?;
+            pb.inc(1);
         }
     }
 
