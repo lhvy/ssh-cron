@@ -8,7 +8,12 @@ use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), async_ssh2_tokio::Error> {
-    let options: Vec<&str> = vec!["On (7am->5pm)", "On (7am->9pm)", "Always On", "Off"];
+    let options: Vec<&str> = vec![
+        "On (7am->5pm)",
+        "On (7am->9pm)",
+        "Always On",
+        "Off (Disabled at 5pm)",
+    ];
 
     let ans: Result<&str, InquireError> =
         Select::new("What mode would you like?", options).prompt();
