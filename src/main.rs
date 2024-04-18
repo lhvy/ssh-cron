@@ -82,10 +82,8 @@ async fn main() -> Result<(), async_ssh2_tokio::Error> {
                         .await?;
                     assert_eq!(result.exit_status, 0);
                 }
-                "Off" => {
-                    client
-                        .execute("export DISPLAY=:0 && /home/pi/startDisplaynight.sh")
-                        .await?;
+                "Off (Disabled at 5pm)" => {
+                    // Don't do anything here, let the cron job from above run at 5pm.
                 }
                 _ => unreachable!(),
             };
